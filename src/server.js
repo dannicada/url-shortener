@@ -18,7 +18,7 @@ app.use(bodyParser.json());
 
 
 
-MongoClient.connect(databaseUrl, { useNewUrlParser: true })
+MongoClient.connect(databaseUrl, { useNewUrlParser: true, useUnifiedTopology: true })
   .then(client => {
     app.locals.db = client.db('shortener');
   })
@@ -39,6 +39,9 @@ const shortenURL = (db, url) => {
     }
   );
 };
+//function to check of a url with that short id exists in the databse
+const checkIfShortIdExists = (db, code) => db.collection('shortenedURLs')
+    .findOne({short_id: code});
 
 
 
@@ -47,7 +50,19 @@ app.get('/', (req, res) => {
     res.sendFile(htmlPath);
 });
 
+//catches all other routes with short_id as parameter
+app.get('/:short_id', (req, res) => {
+    const shortId = req.params.short_id;
 
+    const {db} = req.app.locals;
+    checkIfShortIdExists(db, shortId)
+        .then(doc => {
+            if (doc === null) return res.send('Uh oh. We could not find a link at that URL');
+
+            res.redirect(doc.original_url)
+        })
+        .catch(console.error);
+})
 
 app.post('/new', (req, res) => {
     let originalUrl;
